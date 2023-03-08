@@ -8,7 +8,13 @@ interface IMessage {
 }
 
 function App() {
-  const [messages, setMessages] = useState<IMessage[]>([]);
+  const [messages, setMessages] = useState<IMessage[]>([
+    {
+      id: Date.now(),
+      content: "hello",
+      sender: "gpt",
+    },
+  ]);
   const [message, setMessage] = useState("");
 
   const onSendMessage = () => {
@@ -25,19 +31,19 @@ function App() {
       <div className="body h-body flex px-5 pb-4">
         <div className="w-1/4"></div>
 
-        <div className="flex-grow chat-box flex flex-col">
+        <div className="flex-grow chat-box flex flex-col px-6">
           <div className="messages flex-grow">
             {messages?.map((message: IMessage) => (
               <div
                 key={message.id}
-                className={`message bg-white w-fit px-6 py-2 text-base ${message.sender}`}
+                className={`message bg-white w-fit px-6 py-2 mb-2 text-base ${message.sender}`}
               >
                 {message.content}
               </div>
             ))}
           </div>
 
-          <div className="form-send-message px-6 relative">
+          <div className="form-send-message relative">
             <div className="call-icon bg-grey-400 w-fit p-2 rounded-full text-grey-600 absolute top-2 left-8">
               <svg
                 width="24"

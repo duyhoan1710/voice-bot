@@ -46,3 +46,11 @@
   border-top-right-radius: 1.5rem;
   border-bottom-right-radius: 1.5rem;
 }
+
+.gpt {
+  margin-left: auto;
+  border-top-left-radius: 1.5rem;
+  border-bottom-left-radius: 1.5rem;
+  border-top-right-radius: 0.375rem;
+  border-bottom-right-radius: 1.5rem;
+}
