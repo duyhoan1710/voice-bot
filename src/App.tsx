@@ -1,5 +1,11 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import textToSpeech from "@google-cloud/text-to-speech";
+
+import iconMicrophone from "./assets/microphone.png";
+import iconRecording from "./assets/voice-recorder.png";
+
 import "./App.css";
+import { sendMessage } from "./api/message";
 
 interface IMessage {
   id: number;
@@ -8,6 +14,9 @@ interface IMessage {
 }
 
 function App() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const messagesRef = useRef<HTMLDivElement>(null);
+
   const [messages, setMessages] = useState<IMessage[]>([
     {
       id: Date.now(),
@@ -16,57 +25,117 @@ function App() {
     },
   ]);
   const [message, setMessage] = useState("");
+  const [isRecording, setIsRecording] = useState(false);
 
   const onSendMessage = () => {
     setMessages((oldMessages) => [
-      { id: Date.now(), content: message, sender: "user" },
       ...oldMessages,
+      { id: Date.now(), content: message, sender: "user" },
     ]);
+    setMessage("");
+    setIsRecording(false);
+
+    sendMessage(message).then((msg) =>
+      setMessages((oldMessages) => [
+        ...oldMessages,
+        { id: Date.now(), content: msg, sender: "gpt" },
+      ])
+    );
   };
 
+  const microphone = useMemo(() => {
+    const $ = window as any;
+    const SpeechRecognition = $.SpeechRecognition || $.webkitSpeechRecognition;
+    const microphone = new SpeechRecognition();
+
+    microphone.continuous = true;
+    microphone.interimResults = true;
+    microphone.lang = "en-US";
+
+    microphone.onresult = (event: any) => {
+      const recordingResult = Array.from(event.results)
+        .map((result: any) => result[0])
+        .map((result) => result.transcript)
+        .join("");
+
+      setMessage(recordingResult);
+
+      microphone.onerror = (event: any) => {
+        console.log(event.error);
+      };
+    };
+
+    return microphone;
+  }, []);
+
+  // const client = useMemo(() => {
+  //   return new textToSpeech.TextToSpeechClient();
+  // }, []);
+
+  useEffect(() => {
+    if (isRecording) microphone.start();
+    else microphone.stop();
+  }, [isRecording, microphone]);
+
+  useEffect(() => {
+    const messagesDiv = messagesRef.current;
+
+    messagesDiv?.scrollTo(0, messagesDiv.scrollHeight);
+  }, [messages]);
+
   return (
-    <div className="App">
+    <div className="App" ref={containerRef}>
       <div className="header h-20"></div>
 
       <div className="body h-body flex px-5 pb-4">
         <div className="w-1/4"></div>
 
-        <div className="flex-grow chat-box flex flex-col px-6">
-          <div className="messages flex-grow">
-            {messages?.map((message: IMessage) => (
-              <div
-                key={message.id}
-                className={`message bg-white w-fit px-6 py-2 mb-2 text-base ${message.sender}`}
-              >
-                {message.content}
-              </div>
-            ))}
+        <div className="lg:max-w-[50%] flex-grow chat-box flex flex-col px-6">
+          <div className="py-3 flex-grow overflow-y-hidden">
+            <div
+              ref={messagesRef}
+              className="messages h-full overflow-y-auto pr-2"
+            >
+              {messages?.map((message: IMessage) => (
+                <div
+                  key={message.id}
+                  className={`message max-w-[80%] bg-white w-fit px-6 py-2 mb-2 text-base ${message.sender}`}
+                >
+                  {message.content}
+                </div>
+              ))}
+            </div>
           </div>
 
-          <div className="form-send-message relative">
-            <div className="call-icon bg-grey-400 w-fit p-2 rounded-full text-grey-600 absolute top-2 left-8">
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M19.3526 20.7014C18.0796 21.6562 16.4682 22.0722 14.9806 21.5072C13.0763 20.784 10.2706 19.3414 7.46491 16.5357C4.6592 13.73 3.21667 10.9243 2.49342 9.02006C1.9284 7.53245 2.34445 5.92103 3.29923 4.648L4.4507 3.1127C5.2507 2.04603 6.8507 2.04603 7.6507 3.1127L9.25259 5.24855C9.84977 6.04479 9.77058 7.15898 9.0668 7.86276L8.01701 8.91255C7.69254 9.23702 7.63285 9.73866 7.89693 10.1139C8.39055 10.8154 9.30721 12.0141 10.6469 13.3537C11.9866 14.6934 13.1853 15.6101 13.8867 16.1037C14.262 16.3678 14.7636 16.3081 15.0881 15.9836L16.1379 14.9338C16.8417 14.23 17.9558 14.1509 18.7521 14.748L20.8879 16.3499C21.9546 17.1499 21.9546 18.7499 20.8879 19.5499L19.3526 20.7014Z"
-                  fill="currentColor"
-                ></path>
-              </svg>
+          <div className="form-send-message relative z-20">
+            <div
+              className="call-icon bg-grey-400 w-fit p-2 rounded-full text-grey-600 absolute top-2 left-3 cursor-pointer"
+              onClick={() => {
+                setIsRecording(true);
+              }}
+            >
+              <img
+                src={isRecording ? iconRecording : iconMicrophone}
+                alt=""
+                className="w-6"
+              />
             </div>
 
             <input
               className="w-full h-14 rounded-md focus-visible:outline-none px-16"
               onChange={(e) => setMessage(e.target.value)}
+              value={message}
+              onKeyUp={(e) => {
+                const keyCode = e.code || e.key;
+                if (keyCode === "Enter") {
+                  onSendMessage();
+                }
+              }}
             />
 
             {message && (
               <button
-                className="text-gray-400 absolute top-2.5 right-8"
+                className="text-gray-400 absolute top-2.5 right-3"
                 onClick={onSendMessage}
               >
                 <svg
@@ -85,7 +154,7 @@ function App() {
           </div>
         </div>
 
-        <div className="w-1/4 chat-rooms">
+        <div className="w-1/4 chat-rooms overflow-y-auto pr-2">
           <div className="room bg-grey-400 p-4 rounded-lg cursor-pointer">
             <div className="flex justify-between mb-3">
               <div className="font-bold text-base">Room 1</div>
@@ -130,8 +199,90 @@ function App() {
               </div>
             </div>
           </div>
+
+          <div className="room bg-grey-400 p-4 rounded-lg cursor-pointer mt-3">
+            <div className="flex justify-between mb-3">
+              <div className="font-bold text-base">Room 1</div>
+              <div className="text-grey-600">See All</div>
+            </div>
+
+            <div>
+              <div className="mb-1">Content:</div>
+              <div className="text-grey-600">
+                {" "}
+                - Explain quantum computing in simple terms
+              </div>
+            </div>
+          </div>
+
+          <div className="room bg-grey-400 p-4 rounded-lg cursor-pointer mt-3">
+            <div className="flex justify-between mb-3">
+              <div className="font-bold text-base">Room 1</div>
+              <div className="text-grey-600">See All</div>
+            </div>
+
+            <div>
+              <div className="mb-1">Content:</div>
+              <div className="text-grey-600">
+                {" "}
+                - Explain quantum computing in simple terms
+              </div>
+            </div>
+          </div>
+
+          <div className="room bg-grey-400 p-4 rounded-lg cursor-pointer mt-3">
+            <div className="flex justify-between mb-3">
+              <div className="font-bold text-base">Room 1</div>
+              <div className="text-grey-600">See All</div>
+            </div>
+
+            <div>
+              <div className="mb-1">Content:</div>
+              <div className="text-grey-600">
+                {" "}
+                - Explain quantum computing in simple terms
+              </div>
+            </div>
+          </div>
+
+          <div className="room bg-grey-400 p-4 rounded-lg cursor-pointer mt-3">
+            <div className="flex justify-between mb-3">
+              <div className="font-bold text-base">Room 1</div>
+              <div className="text-grey-600">See All</div>
+            </div>
+
+            <div>
+              <div className="mb-1">Content:</div>
+              <div className="text-grey-600">
+                {" "}
+                - Explain quantum computing in simple terms
+              </div>
+            </div>
+          </div>
+
+          <div className="room bg-grey-400 p-4 rounded-lg cursor-pointer mt-3">
+            <div className="flex justify-between mb-3">
+              <div className="font-bold text-base">Room 1</div>
+              <div className="text-grey-600">See All</div>
+            </div>
+
+            <div>
+              <div className="mb-1">Content:</div>
+              <div className="text-grey-600">
+                {" "}
+                - Explain quantum computing in simple terms
+              </div>
+            </div>
+          </div>
         </div>
       </div>
+
+      {isRecording && (
+        <div
+          className="overlay-recording z-10"
+          onClick={() => setIsRecording(false)}
+        />
+      )}
     </div>
   );
 }
