@@ -1,12 +1,20 @@
 import api from "./index";
 
-export const sendMessage = async (message: string) => {
-  const res = await api.post("https://api.openai.com/v1/chat/completions", {
-    model: "gpt-3.5-turbo",
-    messages: [{ role: "user", content: message }],
-  });
+export const getMessages = async (roomId?: number) => {
+  const res = await api.get(
+    `${process.env.REACT_APP_API_SERVER}/rooms/${roomId}/messages`
+  );
 
-  console.log(res);
+  return res.data?.data;
+};
 
-  return res.data.choices[0].message.content;
+export const sendMessage = async (roomId?: number, message?: string) => {
+  const res = await api.post(
+    `${process.env.REACT_APP_API_SERVER}/rooms/${roomId}/messages`,
+    {
+      content: message,
+    }
+  );
+
+  return res.data?.data;
 };
