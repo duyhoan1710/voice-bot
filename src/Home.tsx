@@ -1,18 +1,21 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import TextareaAutosize from "react-textarea-autosize";
+import { useNavigate, useParams } from "react-router-dom";
+import { Canvas } from "@react-three/fiber";
+import { OrbitControls } from "@react-three/drei";
 
 import iconMicrophone from "./assets/microphone.png";
 import iconRecording from "./assets/voice-recorder.png";
 import phone from "./assets/phone-call.png";
 import phoneCall from "./assets/telephone-call.png";
 
+import { Model } from "./Model"; /* highlight-line */
 import { Loading } from "./commons/Loading";
 import { getRooms, createRoom } from "./api/room";
 import { getMessages, sendMessage } from "./api/message";
 
 import "./App.css";
-import { useNavigate, useParams } from "react-router-dom";
 
 interface IMessage {
   id: number;
@@ -38,9 +41,9 @@ function Home() {
   const { mutate: handleCreateRoom } = useMutation(
     () => createRoom("New Chat"),
     {
-      onSuccess: (res) => {
+      onSuccess: async (res) => {
         const roomId = res.data.id;
-        queryClient.invalidateQueries("ROOMS");
+        await queryClient.invalidateQueries("ROOMS");
         navigate("/rooms/" + roomId);
       },
     }
@@ -221,7 +224,24 @@ function Home() {
       <div className="header h-20"></div>
 
       <div className="body h-body flex px-5 pb-4">
-        <div className="lg:w-1/4"></div>
+        <div className="lg:w-1/4">
+          <Canvas
+            camera={{ position: [2, 1, 10], fov: 12 }}
+            style={{
+              backgroundColor: "transparent",
+              width: "100%",
+              height: "100%",
+            }}
+          >
+            <ambientLight intensity={1.25} />
+            <ambientLight intensity={0.1} />
+            <directionalLight intensity={0.4} />
+            <Suspense fallback={<div>ABC</div>}>
+              <Model position={[0.025, -0.9, 0]} />
+            </Suspense>
+            <OrbitControls enableZoom={false} />
+          </Canvas>
+        </div>
 
         <div className="lg:max-w-[50%] lg:px-6 flex-grow chat-box flex flex-col ">
           <div className="py-3 flex-grow overflow-y-hidden">
